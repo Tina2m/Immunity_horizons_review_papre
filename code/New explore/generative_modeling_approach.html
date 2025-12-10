@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AIRR Simulator Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b0c0f;
+      --panel:#111318;
+      --ink:#e6e8ec;
+      --muted:#a6abb4;
+      --grid:#242833;
+      --accent:#4f46e5;
+      --border:#1e2230;
+      --point:12px;              /* circle radius */
+      --neutral:#7d8596;         /* default mono color */
+      --shadow:0 6px 16px rgba(0,0,0,.25);
+
+      /* Named colors for familiar approaches (used when that tag is selected) */
+      --HMM:#60a5fa;
+      --Probabilistic:#22c55e;
+      --Selection:#f59e0b;
+      --Rule-based:#a78bfa;
+      --Hybrid:#ef4444;
+      --Evolutionary:#14b8a6;
+      --Summary:#9ca3af;
+      --Modular:#38bdf8;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      color:var(--ink);
+      background:linear-gradient(180deg,#0a0b0e 0%, #0f1116 100%);
+      display:flex; align-items:flex-start; justify-content:center; padding:28px;
+    }
+    .wrap{ width:min(1200px,100%); display:flex; flex-direction:column; gap:16px; }
+
+    header{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+    header h1{ margin:0; font-size:20px; font-weight:700; }
+
+    /* Category switcher */
+    .switcher{
+      display:flex; flex-wrap:wrap; gap:8px;
+      background:var(--panel); border:1px solid var(--border); border-radius:14px;
+      padding:8px 8px; box-shadow:var(--shadow);
+    }
+    .switcher button{
+      padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+      background:#0f131a; color:var(--ink); cursor:pointer;
+    }
+    .switcher button.active{
+      border-color:color-mix(in oklab, var(--accent) 55%, black);
+      background:linear-gradient(180deg, color-mix(in oklab, var(--accent) 16%, #0f131a) 0%, #0f131a 100%);
+      box-shadow:0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+    }
+
+    /* Legend for the selected category */
+    .legend{
+      display:flex; gap:8px; flex-wrap:wrap;
+      background:var(--panel); border:1px solid var(--border); border-radius:14px;
+      padding:10px; box-shadow:var(--shadow);
+    }
+    .legend button{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+      background:#0f131a; color:var(--ink); cursor:pointer; user-select:none;
+      box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 6px 14px rgba(0,0,0,.15);
+    }
+    .legend button.active{
+      border-color:color-mix(in oklab, var(--accent) 55%, black);
+      background:linear-gradient(180deg, color-mix(in oklab, var(--accent) 16%, #0f131a) 0%, #0f131a 100%);
+      box-shadow:0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+    }
+    .legend .reset{ margin-left:auto; background:#0b0e14; }
+    .swatch{ width:10px; height:10px; border-radius:50%; box-shadow:0 0 0 2px rgba(0,0,0,.35) inset, 0 0 0 1px rgba(255,255,255,.06); }
+
+    /* Chart grid */
+    .chart-wrap{
+      display:grid; grid-template-columns:120px 1fr; grid-template-rows:420px 48px;
+      width:100%; background:var(--panel); border:1px solid var(--border);
+      border-radius:16px; overflow:hidden; box-shadow:var(--shadow);
+    }
+    .y-axis{ grid-column:1; grid-row:1; position:relative; background:#0f1218; border-right:1px solid var(--border); }
+    .y-title{ position:absolute; left:10px; top:10px; color:var(--muted); font-size:11px; letter-spacing:.3px; opacity:.9; }
+    .y-axis .label{ position:absolute; left:0; right:0; display:flex; align-items:center; justify-content:flex-end; padding:0 10px; color:var(--muted); font-size:12px; transform:translateY(-50%); }
+
+    .plot{ grid-column:2; grid-row:1; position:relative; background:#0b0e14; isolation:isolate; }
+    .plot .inner{ position:absolute; inset:var(--pad, 20px); }
+    .grid-x, .grid-y{ position:absolute; inset:0; pointer-events:none; }
+    .grid-x .line{ position:absolute; top:0; bottom:0; width:1px; background:var(--grid); }
+    .grid-y .line{ position:absolute; left:0; right:0; height:1px; background:var(--grid); }
+
+    .x-axis{ grid-column:2; grid-row:2; position:relative; background:#0f1218; border-top:1px solid var(--border); }
+    .x-axis .tick{ position:absolute; top:0; bottom:20px; width:1px; background:transparent; }
+    .x-axis .tick::after{ content:""; position:absolute; bottom:20px; left:-.5px; width:1px; height:8px; background:var(--grid); }
+    .x-axis .label{ position:absolute; bottom:2px; transform:translateX(-50%); font-size:12px; color:var(--muted); }
+    .x-title{ position:absolute; right:8px; bottom:2px; color:var(--muted); font-size:11px; letter-spacing:.3px; }
+
+    /* Points (mono by default) */
+    .point{
+      position:absolute; width:calc(var(--point)*2); height:calc(var(--point)*2);
+      border-radius:50%;
+      transform: translate(calc(-50% + var(--jx, 0px)), calc(-50% + var(--jy, 0px)));
+      background:var(--neutral);
+      outline:1px solid rgba(255,255,255,.08);
+      box-shadow:0 2px 8px rgba(0,0,0,.35);
+      cursor:default;
+      transition:filter .15s ease, opacity .15s ease, background .15s ease;
+    }
+    .point::after{ content:""; position:absolute; inset:2px; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(0,0,0,.25), inset 0 8px 16px rgba(255,255,255,.08); pointer-events:none; }
+    .point .label{
+      position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
+      width:max-content; max-width:300px; padding:6px 8px; border-radius:10px;
+      background:#0f131a; border:1px solid var(--border); color:var(--ink);
+      font:12px/1.3 system-ui, sans-serif; white-space:nowrap; pointer-events:none;
+      opacity:0; transition:opacity .15s ease, transform .15s ease; box-shadow:var(--shadow); z-index:3;
+    }
+    .point:hover .label{ opacity:1; transform:translateX(-50%) translateY(-2px); }
+
+    .dim .point{ opacity:.25; filter:grayscale(.25); }
+    .point.active{ opacity:1 !important; filter:none !important; }
+
+    @media (max-width: 720px){
+      .chart-wrap{ grid-template-columns:84px 1fr; grid-template-rows:380px 44px; }
+      .x-axis .label, .y-axis .label{ font-size:11px; }
+      .switcher button, .legend button{ padding:7px 9px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>AIRR Simulator Explorer</h1>
+      <div class="switcher" id="switcher" role="tablist" aria-label="Choose legend category"></div>
+    </header>
+
+    <div class="legend" id="legend" role="group" aria-label="Legend"></div>
+
+    <div class="chart-wrap" aria-label="Scatter plot by species (y) and year (x)">
+      <div class="y-axis" id="yAxis" aria-hidden="true"><div class="y-title">Species</div></div>
+      <div class="plot" id="plot" role="img" aria-label="Plot area"><div class="inner"></div></div>
+      <div class="x-axis" id="xAxis" aria-hidden="true"><div class="x-title">Year</div></div>
+    </div>
+  </div>
+
+  <script>
+    // -------- Data --------
+    const simulators = [
+      { name:'repgenHMM', year:2015, species:'Mouse',
+        approaches:['HMM'], bioScope:'V(D)J recombination', chain:'Single', output:'Sequence only', input:'De novo',
+        speciesSupport:'Human, Mouse', timeSeries:'❌', useCase:'Recombination modeling', iface:'CLI, limited extensibility'
+      },
+      { name:'OLGA', year:2017, species:'Human',
+        approaches:['Probabilistic'], bioScope:'V(D)J recombination', chain:'Single', output:'Sequence only', input:'Inference-based',
+        speciesSupport:'Human, Mouse', timeSeries:'❌', useCase:'Sequence generation', iface:'Python API'
+      },
+      { name:'IGoR', year:2016, species:'Human',
+        approaches:['HMM','Probabilistic'], bioScope:'V(D)J + junctional diversity', chain:'Single', output:'Annotated sequences', input:'Inference-based',
+        speciesSupport:'Human, Mouse', timeSeries:'❌', useCase:'Recombination + junction modeling', iface:'CLI, extensible config'
+      },
+      { name:'SONIA', year:2018, species:'Human',
+        approaches:['Selection'], bioScope:'Post-recombination selection', chain:'Single', output:'Sequence + selection', input:'Inference-based',
+        speciesSupport:'Human', timeSeries:'❌', useCase:'Selection pressure analysis', iface:'Python API'
+      },
+      { name:'immuneSIM', year:2019, species:'Multi-species',
+        approaches:['Rule-based'], bioScope:'Recombination + clonal expansion', chain:'Single', output:'FASTQ + metadata', input:'De novo',
+        speciesSupport:'Multi-species', timeSeries:'manual staging', useCase:'Benchmarking, clonal dynamics', iface:'R package, GUI'
+      },
+      { name:'AIRRSHIP', year:2020, species:'Human',
+        approaches:['Hybrid'], bioScope:'Recombination + mutation', chain:'Paired', output:'FASTQ + UMI', input:'Hybrid',
+        speciesSupport:'Human', timeSeries:'manual staging', useCase:'Pipeline benchmarking', iface:'Python API, modular'
+      },
+      { name:'sumrep', year:2018, species:'Human',
+        approaches:['Summary'], bioScope:'Summary statistics only', chain:'Single', output:'No sequences', input:'Inference-based',
+        speciesSupport:'Human', timeSeries:'no support', useCase:'Repertoire comparison', iface:'R package'
+      },
+      { name:'partis (paired)', year:2017, species:'Mouse',
+        approaches:['Hybrid'], bioScope:'Recombination + SHM', chain:'Paired', output:'Annotated sequences', input:'Inference-based',
+        speciesSupport:'Human, Mouse', timeSeries:'manual iteration', useCase:'Lineage reconstruction', iface:'CLI, extensible'
+      },
+      { name:'TAPIR', year:2021, species:'Human',
+        approaches:['Probabilistic'], bioScope:'Read simulation', chain:'Single', output:'FASTQ + error profiles', input:'Inference-based',
+        speciesSupport:'Human', timeSeries:'no support', useCase:'Read-level benchmarking', iface:'CLI, config-based'
+      },
+      { name:'TULIP', year:2022, species:'Custom',
+        approaches:['Modular','Rule-based'], bioScope:'Recombination + mutation', chain:'Paired', output:'FASTA + metadata', input:'Hybrid',
+        speciesSupport:'Customizable', timeSeries:'possible via scripting', useCase:'Lineage modeling, mutation dynamics', iface:'Python, plugin-based'
+      },
+      { name:'Ruiz Ortega et al.', year:2023, species:'Human',
+        approaches:['Evolutionary'], bioScope:'Recombination + clonal evolution', chain:'Paired', output:'FASTQ + timepoints', input:'Hybrid',
+        speciesSupport:'Human', timeSeries:'native support', useCase:'Longitudinal benchmarking', iface:'Python, modular'
+      },
+      { name:'Böttcher et al.', year:2023, species:'Human',
+        approaches:['Evolutionary'], bioScope:'Selection + clonal dynamics', chain:'Paired', output:'FASTA + metadata', input:'Hybrid',
+        speciesSupport:'Human', timeSeries:'native support', useCase:'Immune dynamics over time', iface:'Python, extensible'
+      }
+    ];
+
+    // -------- Config --------
+    const speciesOrder = ['Human','Mouse','Multi-species','Custom'];
+
+    // Removed "Species Support" from the legend categories as requested
+    const CATEGORY_DEFS = [
+      { key:'approaches',   label:'Approach',           multi:true },
+      { key:'bioScope',     label:'Biological Scope' },
+      { key:'chain',        label:'Chain Support' },
+      { key:'output',       label:'Output Fidelity' },
+      { key:'input',        label:'Input Type' },
+      { key:'timeSeries',   label:'Time-Series' },              // emojis normalized below
+      { key:'useCase',      label:'Use-Case Focus', splitCommas:true },
+      { key:'iface',        label:'Interface',        splitCommas:true }
+    ];
+
+    // X axis: min .. 2025
+    const years = simulators.map(d => d.year);
+    const minYear = Math.min(...years);
+    const axisMaxYear = 2025;
+
+    // -------- DOM --------
+    const plot = document.getElementById('plot');
+    const inner = plot.querySelector('.inner');
+    const yAxis = document.getElementById('yAxis');
+    const xAxis = document.getElementById('xAxis');
+    const switcher = document.getElementById('switcher');
+    const legendEl = document.getElementById('legend');
+
+    // -------- Scales --------
+    const scaleX = y => ((y - minYear) / (axisMaxYear - minYear)) * 100;
+    const scaleY = s => (speciesOrder.indexOf(s) / (speciesOrder.length - 1)) * 100;
+
+    function setPlotPadding(){
+      const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--point')) || 12;
+      const padPx = Math.round(r + 8);
+      plot.style.setProperty('--pad', padPx + 'px');
+      return padPx;
+    }
+
+    // -------- Utility: tokenization & colors --------
+    function normalizeTimeSeries(v){
+      if(!v) return '';
+      const s = String(v).trim();
+      if (s === '✅' || s.startsWith('✅')) return 'native support';
+      if (s === '❌' || s.startsWith('❌')) return 'no support';
+      // strip leading warning emoji if present
+      return s.replace(/^⚠️\s*/,'').toLowerCase();
+    }
+
+    function tokensFor(item, cat){
+      const v = item[cat.key];
+      if (cat.key === 'timeSeries'){
+        return [normalizeTimeSeries(v)];
+      }
+      if (cat.multi && Array.isArray(v)) return v.slice();
+      if (typeof v === 'string'){
+        if (cat.splitCommas) return v.split(',').map(s=>s.trim()).filter(Boolean);
+        return [v.trim()];
+      }
+      return [];
+    }
+    function allTokensFor(cat){
+      return Array.from(new Set(simulators.flatMap(s => tokensFor(s, cat))));
+    }
+    function cssVarSafe(name){ return name.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-]/g,''); }
+    function colorFromCSSVar(name){
+      const v = getComputedStyle(document.documentElement).getPropertyValue(`--${cssVarSafe(name)}`).trim();
+      return v || null;
+    }
+    // Deterministic HSL color from a string (fallback if no CSS var defined)
+    function stringToColor(str){
+      let h=0; for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
+      h = h % 360;
+      return `hsl(${h} 65% 55%)`;
+    }
+    function colorForTag(tag){
+      return colorFromCSSVar(tag) || stringToColor(tag);
+    }
+
+    // -------- Axes & grid --------
+    function buildAxes(){
+      yAxis.querySelectorAll('.label').forEach(n=>n.remove());
+      xAxis.querySelectorAll('.tick,.label').forEach(n=>n.remove());
+      inner.querySelectorAll('.grid-x,.grid-y').forEach(n=>n.remove());
+
+      const pad = setPlotPadding();
+      const gridX = document.createElement('div'); gridX.className='grid-x';
+      const gridY = document.createElement('div'); gridY.className='grid-y';
+      inner.append(gridX,gridY);
+
+      const innerH = inner.clientHeight;
+      const innerW = inner.clientWidth;
+
+      speciesOrder.forEach(s=>{
+        const p = scaleY(s);
+        const topPx = pad + (p/100)*innerH;
+
+        const lab = document.createElement('div');
+        lab.className='label'; lab.style.top=`${topPx}px`; lab.textContent=s;
+        yAxis.appendChild(lab);
+
+        const line = document.createElement('div');
+        line.className='line'; line.style.top = `${p}%`;
+        gridY.appendChild(line);
+      });
+
+      for(let y=minYear; y<=axisMaxYear; y++){
+        const p = scaleX(y);
+        const leftPx = pad + (p/100)*innerW;
+
+        const line = document.createElement('div');
+        line.className='line'; line.style.left=`${p}%`;
+        gridX.appendChild(line);
+
+        const tick = document.createElement('div');
+        tick.className='tick'; tick.style.left=`${leftPx}px`;
+
+        const label = document.createElement('div');
+        label.className='label'; label.style.left=`${leftPx}px`; label.textContent=y;
+
+        xAxis.append(tick,label);
+      }
+    }
+
+    // -------- Points (mono by default) --------
+    function buildPoints(){
+      inner.querySelectorAll('.point').forEach(n=>n.remove());
+
+      const totals = simulators.reduce((m,d)=>{ const k=`${d.year}|${d.species}`; m[k]=(m[k]||0)+1; return m; },{});
+      const seen = {};
+      const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--point')) || 12;
+      const STEP = (r*2) + 6;
+
+      simulators
+        .sort((a,b)=> a.year - b.year || speciesOrder.indexOf(a.species) - speciesOrder.indexOf(b.species))
+        .forEach(d=>{
+          const x = scaleX(d.year);
+          const y = scaleY(d.species);
+
+          const key = `${d.year}|${d.species}`;
+          const i = (seen[key] || 0); seen[key] = i + 1;
+          let jx = 0;
+          if (totals[key] > 1){
+            const dir  = i % 2 === 0 ? -1 : 1;
+            const mult = Math.ceil((i + 1) / 2) - 0.5;
+            jx = dir * mult * STEP;
+          }
+
+          const point = document.createElement('div');
+          point.className='point';
+          point.style.left=`${x}%`;
+          point.style.top =`${y}%`;
+          point.style.setProperty('--jx', jx + 'px');
+
+          // Store tokens for all categories (timeSeries normalized)
+          point.dataset.tokens = JSON.stringify(Object.fromEntries(
+            CATEGORY_DEFS.map(cat => [cat.key, tokensFor(d, cat)])
+          ));
+
+          point.title=`${d.name} • ${d.species} • ${d.year}`;
+          const label=document.createElement('div');
+          label.className='label';
+          const tsText = normalizeTimeSeries(d.timeSeries);
+          label.innerHTML =
+            `<strong>${escapeHtml(d.name)}</strong><br>` +
+            `${escapeHtml(d.species)} • ${d.year}<br>` +
+            `<em>${escapeHtml(d.bioScope)}</em><br>` +
+            `Approach: ${escapeHtml((d.approaches||[]).join(' + '))}<br>` +
+            `Chain: ${escapeHtml(d.chain)} • Output: ${escapeHtml(d.output)} • Input: ${escapeHtml(d.input)}<br>` +
+            `Species: ${escapeHtml(d.speciesSupport)} • Time-series: ${escapeHtml(tsText)}<br>` +
+            `${escapeHtml(d.useCase)} • ${escapeHtml(d.iface)}`;
+          point.appendChild(label);
+
+          inner.appendChild(point);
+        });
+    }
+
+    // -------- Switcher + dynamic legend --------
+    let activeCategory = CATEGORY_DEFS[0]; // default "Approach"
+    let activeTag = null;
+
+    function buildSwitcher(){
+      switcher.innerHTML='';
+      CATEGORY_DEFS.forEach(cat=>{
+        const b=document.createElement('button');
+        b.type='button'; b.textContent=cat.label;
+        b.className = cat===activeCategory ? 'active' : '';
+        b.addEventListener('click', ()=>{
+          activeCategory = cat;
+          activeTag = null;
+          buildSwitcher();
+          buildLegend();
+          applyFilter();
+        });
+        switcher.appendChild(b);
+      });
+    }
+
+    function buildLegend(){
+      legendEl.innerHTML='';
+      const tokens = allTokensFor(activeCategory).sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
+      tokens.forEach(tag=>{
+        const btn=document.createElement('button');
+        btn.type='button'; btn.dataset.tag=tag;
+        if(tag===activeTag) btn.classList.add('active');
+
+        const sw=document.createElement('span'); sw.className='swatch';
+        sw.style.background = colorForTag(tag);
+        const txt=document.createElement('span'); txt.textContent=tag;
+
+        btn.append(sw,txt);
+        btn.addEventListener('click',()=>{
+          if(activeTag===tag){ activeTag=null; }
+          else { activeTag=tag; }
+          buildLegend();
+          applyFilter();
+        });
+        legendEl.appendChild(btn);
+      });
+      const reset=document.createElement('button'); reset.type='button'; reset.className='reset'; reset.textContent='Reset';
+      reset.addEventListener('click', ()=>{ activeTag=null; buildLegend(); applyFilter(); });
+      legendEl.appendChild(reset);
+    }
+
+    // -------- Filtering / Coloring --------
+    function applyFilter(){
+      const points = inner.querySelectorAll('.point');
+      if(!activeTag){
+        plot.classList.remove('dim');
+        const neutral = getComputedStyle(document.documentElement).getPropertyValue('--neutral');
+        points.forEach(p=>{
+          p.classList.remove('active');
+          p.style.background = neutral;
+        });
+        return;
+      }
+      plot.classList.add('dim');
+      const key = activeCategory.key;
+      const color = colorForTag(activeTag);
+      const neutral = getComputedStyle(document.documentElement).getPropertyValue('--neutral');
+      points.forEach(p=>{
+        const all = JSON.parse(p.dataset.tokens || '{}');
+        const list = Array.isArray(all[key]) ? all[key] : [];
+        const on = list.includes(activeTag);
+        p.classList.toggle('active', on);
+        p.style.background = on ? color : neutral;
+      });
+    }
+
+    function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+    // -------- Init --------
+    function render(){
+      buildAxes();
+      buildPoints();
+      buildSwitcher();
+      buildLegend();
+      applyFilter();
+    }
+    render();
+    window.addEventListener('resize', ()=>{ buildAxes(); applyFilter(); });
+  </script>
+</body>
+</html>
