@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AIRR Simulator Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      /* LIGHT THEME */
+      --bg:#f3f4f6;
+      --panel:#ffffff;
+      --ink:#111827;
+      --muted:#6b7280;
+      --grid:#e5e7eb;
+      --accent:#4f46e5;
+      --border:#d1d5db;
+      --point:12px;              /* circle radius */
+      --neutral:#9ca3af;         /* default mono color */
+      --shadow:0 10px 28px rgba(15,23,42,.12);
+
+      /* some named colors (still usable if you want) */
+      --HMM:#60a5fa;
+      --Probabilistic:#22c55e;
+      --Selection:#f59e0b;
+      --Rule-based:#a78bfa;
+      --Hybrid:#ef4444;
+      --Evolutionary:#14b8a6;
+      --Summary:#9ca3af;
+      --Modular:#38bdf8;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      color:var(--ink);
+      background:var(--bg);
+      display:flex; align-items:flex-start; justify-content:center; padding:28px;
+    }
+    .wrap{ width:min(1200px,100%); display:flex; flex-direction:column; gap:16px; }
+
+    header{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+    header h1{ margin:0; font-size:20px; font-weight:700; }
+
+    .layout{
+      display:flex;
+      gap:16px;
+      align-items:flex-start;
+    }
+    .main{
+      flex:1 1 auto;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      min-width:0;
+    }
+
+    /* Category switcher (tabs) */
+    .switcher{
+      display:flex; flex-wrap:wrap; gap:8px;
+      background:var(--panel); border:1px solid var(--border); border-radius:14px;
+      padding:8px 8px; box-shadow:var(--shadow);
+    }
+    .switcher button{
+      padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+      background:#f9fafb; color:var(--ink); cursor:pointer;
+    }
+    .switcher button.active{
+      border-color:color-mix(in oklab, var(--accent) 55%, black);
+      background:linear-gradient(180deg, color-mix(in oklab, var(--accent) 8%, #eef2ff) 0%, #eef2ff 100%);
+      box-shadow:0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+    }
+
+    /* Legend row */
+    .legend{
+      display:flex; gap:8px; flex-wrap:wrap;
+      background:var(--panel); border:1px solid var(--border); border-radius:14px;
+      padding:10px; box-shadow:var(--shadow);
+    }
+    .legend button{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+      background:#f9fafb; color:var(--ink); cursor:pointer; user-select:none;
+      box-shadow:0 1px 0 rgba(255,255,255,.5) inset, 0 4px 10px rgba(15,23,42,.08);
+    }
+    .legend button.active{
+      border-color:color-mix(in oklab, var(--accent) 55%, black);
+      background:linear-gradient(180deg, color-mix(in oklab, var(--accent) 8%, #eef2ff) 0%, #eef2ff 100%);
+      box-shadow:0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+    }
+    .legend .reset{ margin-left:auto; background:#f3f4f6; }
+    .swatch{ width:10px; height:10px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.12); }
+
+    /* Chart grid */
+    .chart-wrap{
+      display:grid; grid-template-columns:120px 1fr; grid-template-rows:420px 48px;
+      width:100%; background:var(--panel); border:1px solid var(--border);
+      border-radius:16px; overflow:hidden; box-shadow:var(--shadow);
+    }
+    .y-axis{ grid-column:1; grid-row:1; position:relative; background:#f9fafb; border-right:1px solid var(--border); }
+    .y-title{ position:absolute; left:10px; top:10px; color:var(--muted); font-size:11px; letter-spacing:.3px; opacity:.9; }
+    .y-axis .label{ position:absolute; left:0; right:0; display:flex; align-items:center; justify-content:flex-end; padding:0 10px; color:var(--muted); font-size:12px; transform:translateY(-50%); }
+
+    .plot{ grid-column:2; grid-row:1; position:relative; background:#ffffff; isolation:isolate; }
+    .plot .inner{ position:absolute; inset:var(--pad, 20px); }
+    .grid-x, .grid-y{ position:absolute; inset:0; pointer-events:none; }
+    .grid-x .line{ position:absolute; top:0; bottom:0; width:1px; background:var(--grid); }
+    .grid-y .line{ position:absolute; left:0; right:0; height:1px; background:var(--grid); }
+
+    .x-axis{ grid-column:2; grid-row:2; position:relative; background:#f9fafb; border-top:1px solid var(--border); }
+    .x-axis .tick{ position:absolute; top:0; bottom:20px; width:1px; background:transparent; }
+    .x-axis .tick::after{ content:""; position:absolute; bottom:20px; left:-.5px; width:1px; height:8px; background:var(--grid); }
+    .x-axis .label{ position:absolute; bottom:16px; transform:translateX(-50%); font-size:12px; color:var(--muted); }
+    .x-title{
+  position:absolute; left:50%; transform:translateX(-50%); bottom:2px; text-align:center; font-weight:600; color:var(--muted); font-size:11px; letter-spacing:.3px; }
+
+    /* Points */
+    .point{
+      position:absolute; width:calc(var(--point)*2); height:calc(var(--point)*2);
+      border-radius:50%;
+      transform: translate(calc(-50% + var(--jx, 0px)), calc(-50% + var(--jy, 0px)));
+      background:var(--neutral);
+      outline:1px solid rgba(255,255,255,.7);
+      box-shadow:0 2px 6px rgba(15,23,42,.25);
+      cursor:default;
+      transition:filter .15s ease, opacity .15s ease, background .15s ease;
+      display:block;
+    }
+    .point::after{ content:""; position:absolute; inset:2px; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08), inset 0 6px 10px rgba(255,255,255,.4); pointer-events:none; }
+
+    .point .label{
+      position:absolute;
+      left:calc(100% + 8px);
+      top:50%;
+      transform:translateX(-50%);
+      width:max-content; max-width:320px;
+      padding:6px 8px; border-radius:10px;
+      background:#f9fafb;
+      border:1px solid var(--border);
+      color:var(--ink);
+      font:12px/1.3 system-ui, sans-serif;
+      white-space:nowrap; pointer-events:none;
+      opacity:0;
+      transition:opacity .15s ease, transform .15s ease;
+      box-shadow:0 10px 18px rgba(15,23,42,.15);
+      z-index:3;
+    }
+    .point:hover .label{ opacity:1; transform:translateX(-50%) translateY(-2px); }
+
+    .dim .point{ opacity:.25; filter:grayscale(.25); }
+    .point.active{ opacity:1 !important; filter:none !important; }
+
+    .point .name-tag{
+        position:absolute;
+        bottom:calc(100% + 6px);
+        left:-20%;
+        transform:translateX(0%);
+        font-size:8px;
+        color:var(--ink);
+        white-space:nowrap;
+        pointer-events:none;
+    }
+    .point[role="link"] { cursor: pointer; }
+    .point[role="link"]:hover { filter: brightness(1.05); }
+    .point[role="link"]:focus-visible { outline: 3px solid color-mix(in oklab, var(--accent) 55%, white); }
+
+
+    /* Sidebar (left) */
+    .sidebar{
+      width:260px;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      padding:10px 10px 12px;
+      transition:width .18s ease;
+      overflow:hidden;
+      flex-shrink:0;
+      margin-left:-48px;
+    }
+    .sidebar.collapsed{
+      width:42px;
+    }
+    .sidebar-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:4px;
+      font-size:13px;
+      font-weight:600;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .sidebar.collapsed .sidebar-header span{
+      display:none;
+    }
+    .sidebar-toggle{
+      border:none;
+      background:transparent;
+      cursor:pointer;
+      font-size:16px;
+      line-height:1;
+      padding:2px 4px;
+      color:var(--muted);
+    }
+    .sidebar-body{
+      margin-top:4px;
+    }
+    .sidebar.collapsed .sidebar-body{
+      display:none;
+    }
+    .sidebar-section{
+      margin-top:8px;
+    }
+    .sidebar-title{
+      font-size:12px;
+      font-weight:600;
+      margin-bottom:4px;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+    .side-chip{
+      display:inline-flex;
+      align-items:center;
+      margin:3px 3px 0 0;
+      padding:5px 8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#f9fafb;
+      font-size:11px;
+      cursor:pointer;
+      color:var(--ink);
+    }
+    .side-chip.active{
+      background:#eef2ff;
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px color-mix(in oklab,var(--accent) 25%,transparent);
+    }
+
+    @media (max-width: 900px){
+      .layout{
+        flex-direction:column;
+      }
+      .sidebar{
+        width:100%;
+      }
+      .sidebar.collapsed{
+        width:100%;
+      }
+      .sidebar.collapsed .sidebar-header span{
+        display:inline;
+      }
+      .sidebar.collapsed .sidebar-body{
+        display:block;
+      }
+    }
+
+    @media (max-width: 720px){
+      .chart-wrap{ grid-template-columns:84px 1fr; grid-template-rows:380px 44px; }
+      .x-axis .label, .y-axis .label{ font-size:11px; }
+      .switcher button, .legend button{ padding:7px 9px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>AIRR Simulator Explorer</h1>
+      <div class="switcher" id="switcher" role="tablist" aria-label="Choose legend category"></div>
+    </header>
+
+    <div class="layout">
+      <!-- SIDEBAR ON THE LEFT -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <span>Practical constraints</span>
+          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle filters">⟨</button>
+        </div>
+        <div class="sidebar-body">
+          <!-- Input requirements -->
+          <div class="sidebar-section">
+            <div class="sidebar-title">Input Requirements</div>
+            <button class="side-chip" data-group="inputReq" data-tag="De novo">De novo</button>
+            <button class="side-chip" data-group="inputReq" data-tag="AIRR-seq required">AIRR-seq required</button>
+            <button class="side-chip" data-group="inputReq" data-tag="Germline DB required">Germline DB required</button>
+            <button class="side-chip" data-group="inputReq" data-tag="Paired chains required">Paired chains required</button>
+            <button class="side-chip" data-group="inputReq" data-tag="Multi-omics required">Multi-omics required</button>
+          </div>
+
+          <!-- Chain support -->
+          <div class="sidebar-section">
+            <div class="sidebar-title">Chain Support</div>
+            <button class="side-chip" data-group="chain" data-tag="TRA">TRA</button>
+            <button class="side-chip" data-group="chain" data-tag="TRB">TRB</button>
+            <button class="side-chip" data-group="chain" data-tag="TRG">TRG</button>
+            <button class="side-chip" data-group="chain" data-tag="TRD">TRD</button>
+            <button class="side-chip" data-group="chain" data-tag="IGH">IGH</button>
+            <button class="side-chip" data-group="chain" data-tag="IGK">IGK</button>
+            <button class="side-chip" data-group="chain" data-tag="IGL">IGL</button>
+            <button class="side-chip" data-group="chain" data-tag="Paired-chain">Paired-chain</button>
+            <button class="side-chip" data-group="chain" data-tag="Multi-chain">Multi-chain</button>
+          </div>
+
+          <!-- Interface -->
+          <div class="sidebar-section">
+            <div class="sidebar-title">Interface</div>
+            <button class="side-chip" data-group="iface" data-tag="CLI">CLI</button>
+            <button class="side-chip" data-group="iface" data-tag="Python API">Python API</button>
+            <button class="side-chip" data-group="iface" data-tag="R package">R package</button>
+            <button class="side-chip" data-group="iface" data-tag="GUI">GUI</button>
+            <button class="side-chip" data-group="iface" data-tag="Web tool">Web tool</button>
+            <button class="side-chip" data-group="iface" data-tag="Docker/Singularity">Docker/Singularity</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <div class="main">
+        <div class="legend" id="legend" role="group" aria-label="Legend"></div>
+
+        <div class="chart-wrap" aria-label="Scatter plot by species (y) and year (x)">
+          <div class="y-axis" id="yAxis" aria-hidden="true"><div class="y-title">Species</div></div>
+          <div class="plot" id="plot" role="img" aria-label="Plot area"><div class="inner"></div></div>
+          <div class="x-axis" id="xAxis" aria-hidden="true"><div class="x-title">Year</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ----------------- DATA ----------------- */
+    // Tab 4: groundTruth; Tab 5: useCaseTags (Use-Case Focus).
+    // Use-Case Focus tags:
+    //  Clonotyping benchmarking
+    //  Phylogeny benchmarking
+    //  Repertoire comparison
+    //  ML model training
+    //  Selection inference
+    //  Specificity prediction
+    //  Technical benchmarking (FASTQ)
+    //  Educational simulation
+
+    const simulators = [
+      // Molecular level (Personalization-focused)
+      { name:'repgenHMM (Elhanati 2016)', year:2016, species:'Mouse',
+        approaches:['HMM-based','Probabilistic generative model'],
+        bioScope:'V(D)J recombination', abstraction:'Molecular',
+        groundTruth:['Sequences only','Annotated sequences (VDJ, Pgen)'],
+        useCaseTags:['ML model training','Selection inference'],
+        chain:'Both', output:'Rearranged sequences + Pgen + recombination logs', input:'Inference-based',
+        speciesSupport:'Sequesphere',
+        timeSeries:'❌',
+        useCase:'Modeling V(D)J recombination; generating naïve repertoires; priors for selection models',
+        iface:'CLI / C++ library',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL','Multi-chain'],
+        ifaceTags:['CLI'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1093/bioinformatics/btw094'
+
+      },
+      { name:'IGoR (Marcou 2018)', year:2018, species:'Human',
+        approaches:['HMM-based','Probabilistic generative model'],
+        bioScope:'V(D)J recombination', abstraction:'Molecular',
+        groundTruth:['Sequences only','Annotated sequences (VDJ, Pgen)'],
+        useCaseTags:['ML model training','Selection inference'],
+        chain:'Both', output:'VDJ annotation + generative model', input:'Inference-based',
+        speciesSupport:'Sequesphere, Repertoire',
+        timeSeries:'❌',
+        useCase:'VDJ inference & generation; SHM for BCR',
+        iface:'CLI, extensible config',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL','Multi-chain'],
+        ifaceTags:['CLI'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1038/s41467-018-02832-1'
+
+      },
+      { name:'OLGA (Sethna 2019)', year:2019, species:'Human',
+        approaches:['Probabilistic generative model'],
+        bioScope:'V(D)J recombination', abstraction:'Molecular',
+        groundTruth:['Sequences only','Annotated sequences (VDJ, Pgen)'],
+        useCaseTags:['ML model training','Selection inference'],
+        chain:'Both', output:'Pgen computation for motifs/sequences', input:'Inference-based',
+        speciesSupport:'Sequesphere',
+        timeSeries:'❌',
+        useCase:'Fast Pgen & publicness estimation',
+        iface:'Python / C++',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL','Multi-chain'],
+        ifaceTags:['Python API'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1073/pnas.1815146116'
+
+      },
+
+      // Repertoire level (Benchmarking + personalization)
+      { name:'SONIA (Isacchini 2020)', year:2020, species:'Human',
+        approaches:['Probabilistic generative model'],
+        bioScope:'Selection modeling', abstraction:'Repertoire',
+        groundTruth:['Annotated sequences (VDJ, Pgen)'],
+        useCaseTags:['Selection inference','ML model training'],
+        chain:'TCR', output:'Post-selection probabilities (Ppost)', input:'Inference-based',
+        speciesSupport:'Repertoire, Population',
+        timeSeries:'❌',
+        useCase:'Selection modeling, cohort variation',
+        iface:'Python API',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD'],
+        ifaceTags:['Python API'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1038/s41467-020-19319-1'
+
+      },
+      { name:'soNNia (Isacchini 2021)', year:2021, species:'Human',
+        approaches:['Deep learning'],
+        bioScope:'Selection modeling', abstraction:'Repertoire',
+        groundTruth:['Annotated sequences (VDJ, Pgen)'],
+        useCaseTags:['Selection inference','ML model training'],
+        chain:'Both', output:'Neural selection landscapes', input:'Inference-based',
+        speciesSupport:'Repertoire, Population',
+        timeSeries:'❌',
+        useCase:'Deep-learning selection models',
+        iface:'Python / DL stack',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL'],
+        ifaceTags:['Python API'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1073/pnas.2104246118'
+
+      },
+      { name:'immuneSIM (Weber 2020)', year:2020, species:'Multi-species',
+        approaches:['Rule-based'],
+        bioScope:'SHM & clonal expansion', abstraction:'Repertoire',
+        groundTruth:['Sequences only','Clonal labels','SHM trajectories'],
+        useCaseTags:['Clonotyping benchmarking','Phylogeny benchmarking','Repertoire comparison','Technical benchmarking (FASTQ)','Educational simulation'],
+        chain:'Both', output:'Full repertoires + SHM + errors', input:'De novo',
+        speciesSupport:'Clonosphere, Repertoire',
+        timeSeries:'⚠️ staged',
+        useCase:'Benchmarking clonotyping and repertoire pipelines; teaching repertoire dynamics',
+        iface:'R package, GUI',
+        inputReq:['De novo'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL','Multi-chain'],
+        ifaceTags:['R package','GUI'],
+        temporal:['Manual staging'],
+        paperUrl: 'https://doi.org/10.1093/bioinformatics/btz933'
+
+      },
+      { name:'sumrep (Olson 2019)', year:2019, species:'Human',
+        approaches:['Summary/statistical-only'],
+        bioScope:'Repertoire-level structure', abstraction:'Repertoire',
+        groundTruth:['Sequences only'],
+        useCaseTags:['Repertoire comparison','Clonotyping benchmarking','ML model training'],
+        chain:'Both', output:'Summary metrics, divergence', input:'Analysis-only',
+        speciesSupport:'Repertoire',
+        timeSeries:'❌',
+        useCase:'Statistical evaluation of repertoires; QC and reproducibility',
+        iface:'R package',
+        inputReq:['AIRR-seq required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL','Multi-chain'],
+        ifaceTags:['R package'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1093/bioinformatics/btz275'
+
+      },
+
+      // Clonal level (Benchmarking + educational)
+      { name:'AbSim (Yermanos 2017)', year:2017, species:'Mouse',
+        approaches:['Agent/evolution-based'],
+        bioScope:'SHM & clonal expansion', abstraction:'Clonal',
+        groundTruth:['Clonal labels','Lineage trees','SHM trajectories','Longitudinal output'],
+        useCaseTags:['Clonotyping benchmarking','Phylogeny benchmarking','ML model training','Educational simulation'],
+        chain:'BCR', output:'Lineages + SHM cycles + affinity', input:'De novo',
+        speciesSupport:'Clonosphere, Repertoire',
+        timeSeries:'⚠️ staged',
+        useCase:'Affinity maturation, lineage divergence; conceptual simulation',
+        iface:'Python scripts',
+        inputReq:['De novo'],
+        sidebarChains:['IGH','IGK','IGL'],
+        ifaceTags:['Python API'],
+        temporal:['Implicit (via lineage)','GC/evolution cycles'],
+        paperUrl: 'https://doi.org/10.3389/fimmu.2017.01481'
+
+      },
+      { name:'AIRRSHIP (Guest 2023)', year:2023, species:'Human',
+        approaches:['Hybrid'],
+        bioScope:'SHM & clonal expansion', abstraction:'Clonal',
+        groundTruth:['Sequences only','Annotated sequences (VDJ, Pgen)','Clonal labels','Paired-chain repertoires'],
+        useCaseTags:['Clonotyping benchmarking','Phylogeny benchmarking','Repertoire comparison','Technical benchmarking (FASTQ)'],
+        chain:'BCR', output:'Recombination ground truth + clones', input:'Hybrid',
+        speciesSupport:'Sequesphere, Clonosphere',
+        timeSeries:'⚠️ staged',
+        useCase:'Realistic junctions; benchmarking clonotyping and lineage pipelines',
+        iface:'Python API, modular',
+        inputReq:['AIRR-seq required','Germline DB required','Paired chains required'],
+        sidebarChains:['IGH','IGK','IGL','Paired-chain'],
+        ifaceTags:['Python API','Docker/Singularity'],
+        temporal:['Manual staging','Implicit (via lineage)'],
+        paperUrl: 'https://doi.org/10.1093/bioinformatics/btad051'
+
+      },
+      { name:'Echidna (Yermanos 2023)', year:2023, species:'Mouse',
+        approaches:['Agent/evolution-based','Hybrid'],
+        bioScope:'SHM & clonal expansion', abstraction:'Clonal',
+        groundTruth:['Sequences only','Clonal labels','Lineage trees','SHM trajectories','Paired-chain repertoires','Longitudinal output'],
+        useCaseTags:['Clonotyping benchmarking','Phylogeny benchmarking','Repertoire comparison','ML model training'],
+        chain:'Both', output:'Single-cell repertoire + scRNA-seq + clones', input:'Hybrid',
+        speciesSupport:'Clonal, Repertoire',
+        timeSeries:'✅ native',
+        useCase:'Single-cell clonal dynamics; integration benchmarking',
+        iface:'R / Python',
+        inputReq:['AIRR-seq required','Multi-omics required','Paired chains required'],
+        sidebarChains:['TRA','TRB','IGH','IGK','IGL','Paired-chain','Multi-chain'],
+        ifaceTags:['R package','Python API'],
+        temporal:['Longitudinal simulation','Implicit (via lineage)'],
+        paperUrl: 'https://doi.org/10.1186/s13059-023-02977-4'
+
+      },
+      { name:'SHM models (Yaari 2013)', year:2013, species:'Mouse',
+        approaches:['Rule-based'],
+        bioScope:'SHM & clonal expansion', abstraction:'Clonal',
+        groundTruth:['SHM trajectories'],
+        useCaseTags:['Phylogeny benchmarking','ML model training'],
+        chain:'BCR', output:'Motif-based SHM targeting/substitution', input:'Inference-based',
+        speciesSupport:'Clonosphere',
+        timeSeries:'❌',
+        useCase:'SHM mutation modeling; testing phylogeny / SHM models',
+        iface:'R / Python',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['IGH','IGK','IGL'],
+        ifaceTags:['R package','Python API'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.3389/fimmu.2013.00358'
+
+      },
+      { name:'partis (paired) (Ralph 2022)', year:2022, species:'Mouse',
+        approaches:['Hybrid','HMM-based'],
+        bioScope:'SHM & clonal expansion', abstraction:'Clonal',
+        groundTruth:['Clonal labels','Lineage trees','Paired-chain repertoires','Longitudinal output'],
+        useCaseTags:['Clonotyping benchmarking','Phylogeny benchmarking','Educational simulation'],
+        chain:'BCR', output:'Paired-chain clonal inference + simulations', input:'Inference-based',
+        speciesSupport:'Clonosphere, Repertoire',
+        timeSeries:'⚠️ staged',
+        useCase:'Clonal inference, heavy/light pairing; teaching lineage reconstruction',
+        iface:'CLI, extensible',
+        inputReq:['AIRR-seq required','Germline DB required','Paired chains required'],
+        sidebarChains:['IGH','IGK','IGL','Paired-chain'],
+        ifaceTags:['CLI'],
+         temporal:['Implicit (via lineage)','Manual staging'],
+        paperUrl: 'https://doi.org/10.1093/bioinformatics/btab835'
+
+      },
+
+      // Functional level (Prediction & translational)
+      { name:'TAPIR (DeWitt 2023)', year:2023, species:'Human',
+        approaches:['Deep learning'],
+        bioScope:'Antigen specificity', abstraction:'Functional',
+        groundTruth:['Sequences only'],
+        useCaseTags:['Specificity prediction','ML model training'],
+        chain:'TCR', output:'CNN specificity predictions (scores/probabilities)', input:'Inference-based',
+        speciesSupport:'Specifisphere',
+        timeSeries:'❌',
+        useCase:'TCR–epitope DL prediction; translational immunotherapy',
+        iface:'Python / DL',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD'],
+        ifaceTags:['Python API','Web tool'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1101/2023.03.01.530891'
+
+      },
+      { name:'TULIP (Lu 2023)', year:2023, species:'Custom',
+        approaches:['Deep learning'],
+        bioScope:'Antigen specificity', abstraction:'Functional',
+        groundTruth:['Sequences only'],
+        useCaseTags:['Specificity prediction','ML model training'],
+        chain:'TCR', output:'Unsupervised epitope mapping (embeddings, scores)', input:'Inference-based',
+        speciesSupport:'Specifisphere',
+        timeSeries:'❌',
+        useCase:'Transformer-based TCR–epitope mapping; epitope generalization',
+        iface:'Python / DL',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','Multi-chain'],
+        ifaceTags:['Python API'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1101/2023.02.14.528428'
+
+      },
+
+      // Population level (Prediction & selection)
+      { name:'Ruiz Ortega model (2023)', year:2023, species:'Human',
+        approaches:['Probabilistic generative model'],
+        bioScope:'Selection modeling', abstraction:'Population',
+        groundTruth:['Longitudinal output'],
+        useCaseTags:['Selection inference','Repertoire comparison','ML model training'],
+        chain:'Both', output:'Pgen×Ppost public-clone statistics', input:'Inference-based',
+        speciesSupport:'Population',
+        timeSeries:'❌',
+        useCase:'Public-clone statistics; cross-individual comparisons',
+        iface:'Python',
+        inputReq:['AIRR-seq required','Germline DB required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL'],
+        ifaceTags:['Python API'],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.1371/journal.pgen.1010583'
+
+      },
+      { name:'Böttcher model (2023)', year:2023, species:'Human',
+        approaches:['Summary/statistical-only'],
+        bioScope:'Selection modeling', abstraction:'Population',
+        groundTruth:['Longitudinal output'],
+        useCaseTags:['Selection inference','Repertoire comparison'],
+        chain:'Both', output:'Analytical clone sharing distributions', input:'Analysis-only',
+        speciesSupport:'Population',
+        timeSeries:'❌',
+        useCase:'Analyzing public vs private clones; cohort variation',
+        iface:'Analytical / scripts',
+        inputReq:['AIRR-seq required'],
+        sidebarChains:['TRA','TRB','TRG','TRD','IGH','IGK','IGL'],
+        ifaceTags:[],
+        temporal:['None'],
+        paperUrl: 'https://doi.org/10.3934/mbe.2023009'
+
+      },
+
+      // Measurement Layer (Technical benchmarking)
+      { name:'InSilicoSeq 2.0 (Rösti 2023)', year:2023, species:'Custom',
+        approaches:['Rule-based'],
+        bioScope:'Assay / read simulation', abstraction:'Measurement Layer',
+        groundTruth:['FASTQ with sequencing errors'],
+        useCaseTags:['Technical benchmarking (FASTQ)'],
+        chain:'DNA/RNA', output:'Synthetic reads + error positions + platform bias', input:'De novo',
+        speciesSupport:'Measurement layer',
+        timeSeries:'❌',
+        useCase:'Testing pipeline robustness; UMI/PCR-bias calibration; end-to-end sequencing evaluation',
+        iface:'CLI, config-based',
+        inputReq:['De novo'],
+        sidebarChains:[],
+        ifaceTags:['CLI','Docker/Singularity'],
+        temporal:['Read-level timepoints'],
+        paperUrl: 'https://doi.org/10.1093/bioinformatics/btad231'
+      }
+    ];
+
+    /* ----------------- SCALES & CONFIG ----------------- */
+    const speciesOrder = ['Human','Mouse','Multi-species','Custom'];
+
+    // Tabs:
+    // 1 Approach
+    // 2 Biological Scope
+    // 3 Abstraction Level
+    // 4 Output / Ground Truth
+    // 5 Use-Case Focus
+    // 6 Interface
+    const CATEGORY_DEFS = [
+  { key:'approaches',   label:'Approach',            multi:true },
+  { key:'bioScope',     label:'Biological Scope' },
+  { key:'abstraction',  label:'Abstraction Level' },
+  { key:'groundTruth',  label:'Output / Ground Truth', multi:true },
+  { key:'useCaseTags',  label:'Use-Case Focus',    multi:true },
+  { key:'temporal',     label:'Temporal Modeling', multi:true }
+];
+
+    const TEMPORAL_ORDER = [
+    'None',
+    'Implicit (via lineage)',
+    'Manual staging',
+    'Longitudinal simulation',
+    'GC/evolution cycles',
+    'Read-level timepoints'
+    ];
+
+    const years = simulators.map(d => d.year);
+    const minYear = Math.min(...years);
+    const axisMaxYear = 2025;
+
+    const plot = document.getElementById('plot');
+    const inner = plot.querySelector('.inner');
+    const yAxis = document.getElementById('yAxis');
+    const xAxis = document.getElementById('xAxis');
+    const switcher = document.getElementById('switcher');
+    const legendEl = document.getElementById('legend');
+    const sidebarEl = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+
+    const scaleX = y => ((y - minYear) / (axisMaxYear - minYear)) * 100;
+    const scaleY = s => (speciesOrder.indexOf(s) / (speciesOrder.length - 1)) * 100;
+
+    function setPlotPadding(){
+      const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--point')) || 12;
+      const base = Math.round(r + 18);
+      const padPx = base + 4;
+      plot.style.setProperty('--pad', padPx + 'px');
+      return padPx;
+    }
+
+    /* ----------------- UTILS ----------------- */
+    function tokensFor(item, cat){
+      const v = item[cat.key];
+      if (cat.key === 'timeSeries'){
+        // no tab, but if ever used, keep normalized
+        return [normalizeTimeSeries(v)];
+      }
+      if (cat.multi && Array.isArray(v)) return v.slice();
+      if (typeof v === 'string'){
+        if (cat.splitCommas) return v.split(',').map(s=>s.trim()).filter(Boolean);
+        return [v.trim()];
+      }
+      return [];
+    }
+    function allTokensFor(cat){
+      return Array.from(new Set(simulators.flatMap(s => tokensFor(s, cat)))).filter(Boolean);
+    }
+    // ----------------- COLOR PALETTE -----------------
+    const PALETTE = [
+      '#5B4940',  // brown
+      '#1E3745', // dark teal
+      '#ECCD7E', // yellow
+      '#96C4C0', // light teal
+      '#4281A4', // blue
+      '#D8924C', // orange
+      '#48A9A6', // teal
+      '#C1666B', // rose
+      
+          
+    ];
+
+    function cssVarSafe(name){
+      return name.replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-]/g,'');
+    }
+
+    function colorFromCSSVar(name){
+      const v = getComputedStyle(document.documentElement)
+                  .getPropertyValue(`--${cssVarSafe(name)}`).trim();
+      return v || null;
+    }
+
+    // Hash tag name to one of the palette colors
+    function stringToPaletteColor(str){
+      let h = 0;
+      for (let i = 0; i < str.length; i++) {
+        h = (h * 31 + str.charCodeAt(i)) >>> 0;
+      }
+      const idx = h % PALETTE.length;
+      return PALETTE[idx];
+    }
+
+    function colorForTag(tag){
+      // if you ever define a CSS var like --Deep-learning, it will still win
+      return colorFromCSSVar(tag) || stringToPaletteColor(tag);
+    }
+
+    function escapeHtml(s){ 
+      const d=document.createElement('div'); d.textContent=s; return d.innerHTML;
+     }
+
+    function getShortName(d){
+        // strip reference: "SHM models (Yaari 2013)" -> "SHM models"
+        const base = d.name.split(' ')[0];
+
+        // optional manual overrides
+        if (base === 'SHM models') return 'SHM';
+        if (base === 'Ruiz Ortega model') return 'Ruiz Ortega';
+        // add more special cases if you like
+
+        return base;
+    }
+
+    /* ----------------- AXES & GRID ----------------- */
+    function buildAxes(){
+      yAxis.querySelectorAll('.label').forEach(n=>n.remove());
+      xAxis.querySelectorAll('.tick,.label').forEach(n=>n.remove());
+      inner.querySelectorAll('.grid-x,.grid-y').forEach(n=>n.remove());
+
+      const pad = setPlotPadding();
+      const gridX = document.createElement('div'); gridX.className='grid-x';
+      const gridY = document.createElement('div'); gridY.className='grid-y';
+      inner.append(gridX,gridY);
+
+      const innerH = inner.clientHeight;
+
+      speciesOrder.forEach(s=>{
+        const p = scaleY(s);
+        const topPx = pad + (p/100)*innerH;
+
+        const lab = document.createElement('div');
+        lab.className='label'; lab.style.top=`${topPx}px`; lab.textContent=s;
+        yAxis.appendChild(lab);
+
+        const line = document.createElement('div');
+        line.className='line'; line.style.top = `${p}%`;
+        gridY.appendChild(line);
+      });
+
+      for(let y=minYear; y<=axisMaxYear; y++){
+        const p = scaleX(y);
+        const leftPerc = p;
+
+        const line = document.createElement('div');
+        line.className='line'; line.style.left=`${leftPerc}%`;
+        gridX.appendChild(line);
+
+        const tick = document.createElement('div');
+        tick.className='tick';
+        const innerW = inner.clientWidth;
+        const padPx = parseInt(getComputedStyle(plot).getPropertyValue('--pad')) || 20;
+        const leftPx = padPx + (p/100)*innerW;
+        tick.style.left=`${leftPx}px`;
+
+        const label = document.createElement('div');
+        label.className='label'; label.style.left=`${leftPx}px`; label.textContent=y;
+
+        xAxis.append(tick,label);
+      }
+    }
+
+    /* ----------------- POINTS ----------------- */
+    function buildPoints(){
+      inner.querySelectorAll('.point').forEach(n=>n.remove());
+
+      const totals = simulators.reduce((m,d)=>{ const k=`${d.year}|${d.species}`; m[k]=(m[k]||0)+1; return m; },{});
+      const seen = {};
+      const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--point')) || 12;
+      const STEP = (r*2) + 6;
+
+      simulators
+        .sort((a,b)=> a.year - b.year || speciesOrder.indexOf(a.species) - speciesOrder.indexOf(b.species))
+        .forEach(d=>{
+          const x = scaleX(d.year);
+          const y = scaleY(d.species);
+
+          const key = `${d.year}|${d.species}`;
+          const i = (seen[key] || 0); seen[key] = i + 1;
+          let jx = 0;
+          if (totals[key] > 1){
+            const dir  = i % 2 === 0 ? -1 : 1;
+            const mult = Math.ceil((i + 1) / 2) - 0.5;
+            jx = dir * mult * STEP;
+          }
+
+          const point = document.createElement('div');
+          point.className='point';
+          point.style.left=`${x}%`;
+          point.style.top =`${y}%`;
+          point.style.setProperty('--jx', jx + 'px');
+          // make it act like a link if a paperUrl exists
+          if (d.paperUrl) {
+            point.setAttribute('role', 'link');
+            point.setAttribute('tabindex', '0');
+            point.title = 'Open reference paper';
+
+            point.addEventListener('click', (e) => {
+              // don't trigger if user is selecting text etc.
+              e.stopPropagation();
+              window.open(d.paperUrl, '_blank', 'noopener,noreferrer');
+            });
+
+            point.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                window.open(d.paperUrl, '_blank', 'noopener,noreferrer');
+              }
+            });
+          }
+
+          point.dataset.tokens = JSON.stringify(Object.fromEntries(
+            CATEGORY_DEFS.map(cat => [cat.key, tokensFor(d, cat)])
+          ));
+          point.dataset.sidebar = JSON.stringify({
+            inputReq: d.inputReq || [],
+            chain: d.sidebarChains || [],
+            iface: d.ifaceTags || []
+          });
+
+          const nameTag = document.createElement('div');
+          nameTag.className = 'name-tag';
+          nameTag.textContent = getShortName(d);
+          point.appendChild(nameTag);
+
+          const label=document.createElement('div');
+            label.className='label';
+            label.innerHTML =
+            `<strong>${escapeHtml(d.name)}</strong><br>` +
+            `${escapeHtml(d.species)} • ${d.year}<br>` +
+            `<em>${escapeHtml(d.bioScope)} • ${escapeHtml(d.abstraction)} level</em><br>` +
+            `Approach: ${escapeHtml((d.approaches||[]).join(' + '))}<br>` +
+            `Output GT: ${escapeHtml((d.groundTruth||[]).join(', ') || '—')}<br>` +
+            `Temporal modeling: ${escapeHtml((d.temporal||[]).join(', ') || 'None')}<br>` +
+            `Chain: ${escapeHtml(d.chain)} • Output desc: ${escapeHtml(d.output)}<br>` +
+            `UnivAIRRse: ${escapeHtml(d.speciesSupport)}<br>` +
+            `${escapeHtml(d.useCase)} • ${escapeHtml(d.iface)}`;
+
+          point.appendChild(label);
+
+          inner.appendChild(point);
+        });
+    }
+
+    /* ----------------- CONCEPTUAL FILTERS ----------------- */
+    let activeCategory = CATEGORY_DEFS[0];   // default = Approach
+    let activeTag = null;
+
+    function buildSwitcher(){
+      switcher.innerHTML='';
+      CATEGORY_DEFS.forEach(cat=>{
+        const b=document.createElement('button');
+        b.type='button'; b.textContent=cat.label;
+        b.className = cat===activeCategory ? 'active' : '';
+        b.addEventListener('click', ()=>{
+          activeCategory = cat;
+          activeTag = null;
+          buildSwitcher();
+          buildLegend();
+          applyFilter();
+        });
+        switcher.appendChild(b);
+      });
+    }
+
+    function buildLegend(){
+        legendEl.innerHTML='';
+
+        let tokens = allTokensFor(activeCategory);
+
+        if (activeCategory.key === 'temporal') {
+            // use semantic ordering
+            tokens = tokens.slice().sort((a,b)=>{
+            const ia = TEMPORAL_ORDER.indexOf(a);
+            const ib = TEMPORAL_ORDER.indexOf(b);
+            const aa = ia === -1 ? 999 : ia;
+            const bb = ib === -1 ? 999 : ib;
+            return aa - bb;
+            });
+        } else {
+            // default: alphabetical
+            tokens = tokens.slice().sort(
+            (a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})
+            );
+        }
+
+        tokens.forEach(tag=>{
+            const btn=document.createElement('button');
+            btn.type='button'; btn.dataset.tag=tag;
+            if(tag===activeTag) btn.classList.add('active');
+
+            const sw=document.createElement('span'); sw.className='swatch';
+            sw.style.background = colorForTag(tag);
+            const txt=document.createElement('span'); txt.textContent=tag;
+
+            btn.append(sw,txt);
+            btn.addEventListener('click',()=>{
+            if(activeTag===tag){ activeTag=null; }
+            else { activeTag=tag; }
+            buildLegend();
+            applyFilter();
+            });
+            legendEl.appendChild(btn);
+        });
+
+        const reset=document.createElement('button');
+        reset.type='button';
+        reset.className='reset';
+        reset.textContent='Reset';
+        reset.addEventListener('click', ()=>{
+            activeTag=null; buildLegend(); applyFilter();
+        });
+        legendEl.appendChild(reset);
+    }
+
+
+    /* ----------------- SIDEBAR FILTER STATE ----------------- */
+    const sidebarFilters = {
+      inputReq: new Set(),
+      chain: new Set(),
+      iface: new Set()
+    };
+
+    function setupSidebar(){
+      sidebarToggle.addEventListener('click', ()=>{
+        const collapsed = sidebarEl.classList.toggle('collapsed');
+        sidebarToggle.textContent = collapsed ? '⟩' : '⟨';
+      });
+
+      document.querySelectorAll('.side-chip').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const group = btn.dataset.group;
+          const tag = btn.dataset.tag;
+          const set = sidebarFilters[group];
+          if(!set) return;
+          if(btn.classList.contains('active')){
+            btn.classList.remove('active');
+            set.delete(tag);
+          }else{
+            btn.classList.add('active');
+            set.add(tag);
+          }
+          applyFilter();
+        });
+      });
+    }
+
+    function passesSidebarFilters(sideData){
+      const hasInput = sidebarFilters.inputReq.size>0;
+      const hasChain = sidebarFilters.chain.size>0;
+      const hasIface = sidebarFilters.iface.size>0;
+      if(!hasInput && !hasChain && !hasIface) return true;
+
+      if(hasInput){
+        const vals = sideData.inputReq || [];
+        if(!vals.some(v=>sidebarFilters.inputReq.has(v))) return false;
+      }
+      if(hasChain){
+        const vals = sideData.chain || [];
+        if(!vals.some(v=>sidebarFilters.chain.has(v))) return false;
+      }
+      if(hasIface){
+        const vals = sideData.iface || [];
+        if(!vals.some(v=>sidebarFilters.iface.has(v))) return false;
+      }
+      return true;
+    }
+
+    /* ----------------- APPLY FILTERS ----------------- */
+    function applyFilter(){
+      const points = inner.querySelectorAll('.point');
+      const neutral = getComputedStyle(document.documentElement).getPropertyValue('--neutral');
+
+      const hasConceptTag = !!activeTag;
+      const key = activeCategory.key;
+      const color = hasConceptTag ? colorForTag(activeTag) : null;
+
+      if(!hasConceptTag){
+        plot.classList.remove('dim');
+      } else {
+        plot.classList.add('dim');
+      }
+
+      points.forEach(p=>{
+        const sideData = JSON.parse(p.dataset.sidebar || '{}');
+        const visible = passesSidebarFilters(sideData);
+
+        if(!visible){
+          p.style.display = 'none';
+          return;
+        }
+        p.style.display = 'block';
+
+        if(!hasConceptTag){
+          p.classList.remove('active');
+          p.style.background = neutral;
+          return;
+        }
+
+        const all = JSON.parse(p.dataset.tokens || '{}');
+        const list = Array.isArray(all[key]) ? all[key] : [];
+        const on = list.includes(activeTag);
+        p.classList.toggle('active', on);
+        p.style.background = on ? color : neutral;
+      });
+    }
+
+    /* ----------------- INIT ----------------- */
+    function render(){
+      buildAxes();
+      buildPoints();
+      buildSwitcher();
+      buildLegend();
+      setupSidebar();
+      applyFilter();  // all gray initially; sidebar empty => everyone visible
+    }
+    render();
+    window.addEventListener('resize', ()=>{ buildAxes(); applyFilter(); });
+  </script>
+</body>
+</html>
