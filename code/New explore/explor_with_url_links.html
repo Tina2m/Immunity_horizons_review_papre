@@ -35,9 +35,9 @@
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
       color:var(--ink);
       background:var(--bg);
-      display:flex; align-items:flex-start; justify-content:center; padding:28px;
+      display:flex; align-items:flex-start; justify-content:center; padding:16px;
     }
-    .wrap{ width:min(1200px,100%); display:flex; flex-direction:column; gap:16px; }
+    .wrap{ width:min(1260px,100%); display:flex; flex-direction:column; gap:16px; }
 
     header{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
     header h1{ margin:0; font-size:20px; font-weight:700; }
@@ -103,7 +103,7 @@
 
     .plot{ grid-column:2; grid-row:1; position:relative; background:#ffffff; isolation:isolate; }
     .plot .inner{ position:absolute; inset:var(--pad, 20px); }
-    .grid-x, .grid-y{ position:absolute; inset:0; pointer-events:none; }
+    .grid-x, .grid-y{ position:absolute; inset:0; pointer-events:none; z-index:1; }
     .grid-x .line{ position:absolute; top:0; bottom:0; width:1px; background:var(--grid); }
     .grid-y .line{ position:absolute; left:0; right:0; height:1px; background:var(--grid); }
 
@@ -125,27 +125,11 @@
       cursor:default;
       transition:filter .15s ease, opacity .15s ease, background .15s ease;
       display:block;
+      z-index:2;
     }
     .point::after{ content:""; position:absolute; inset:2px; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08), inset 0 6px 10px rgba(255,255,255,.4); pointer-events:none; }
 
-    .point .label{
-      position:absolute;
-      left:calc(100% + 8px);
-      top:50%;
-      transform:translateX(-50%);
-      width:max-content; max-width:320px;
-      padding:6px 8px; border-radius:10px;
-      background:#f9fafb;
-      border:1px solid var(--border);
-      color:var(--ink);
-      font:12px/1.3 system-ui, sans-serif;
-      white-space:nowrap; pointer-events:none;
-      opacity:0;
-      transition:opacity .15s ease, transform .15s ease;
-      box-shadow:0 10px 18px rgba(15,23,42,.15);
-      z-index:3;
-    }
-    .point:hover .label{ opacity:1; transform:translateX(-50%) translateY(-2px); }
+    .point .label{ display:none; }
 
     .dim .point{ opacity:.25; filter:grayscale(.25); }
     .point.active{ opacity:1 !important; filter:none !important; }
@@ -153,12 +137,18 @@
     .point .name-tag{
         position:absolute;
         bottom:calc(100% + 6px);
-        left:-20%;
-        transform:translateX(0%);
+        left:50%;
+        transform:translate(-50%, -2px);
         font-size:8px;
+        line-height:1.1;
         color:var(--ink);
         white-space:nowrap;
         pointer-events:none;
+        background:transparent;
+        border:none;
+        padding:0;
+        box-shadow:none;
+        z-index:3;
     }
     .point[role="link"] { cursor: pointer; }
     .point[role="link"]:hover { filter: brightness(1.05); }
@@ -166,8 +156,14 @@
 
 
     /* Sidebar (left) */
+    .sidecol{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      flex-shrink:0;
+    }
     .sidebar{
-      width:260px;
+      width:320px;
       background:var(--panel);
       border:1px solid var(--border);
       border-radius:14px;
@@ -175,7 +171,6 @@
       padding:10px 10px 12px;
       transition:width .18s ease;
       overflow:hidden;
-      flex-shrink:0;
       margin-left:-48px;
     }
     .sidebar.collapsed{
@@ -212,6 +207,45 @@
     .sidebar-section{
       margin-top:8px;
     }
+    .tool-panel{
+      width:320px;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      padding:10px 10px 12px;
+      margin-left:-48px;
+    }
+    .tool-info{
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#f9fafb;
+      font-size:11px;
+      color:var(--ink);
+      min-height:140px;
+      max-height:none;
+      overflow:visible;
+    }
+    .tool-info-title{
+      font-weight:700;
+      margin-bottom:2px;
+    }
+    .tool-info-meta{
+      color:var(--muted);
+      font-size:11px;
+      margin-bottom:6px;
+    }
+    .tool-info-line{
+      margin:2px 0;
+    }
+    .tool-info-label{
+      color:var(--muted);
+      font-weight:600;
+    }
+    .tool-info-muted{
+      color:var(--muted);
+    }
     .sidebar-title{
       font-size:12px;
       font-weight:600;
@@ -242,8 +276,15 @@
       .layout{
         flex-direction:column;
       }
+      .sidecol{
+        width:100%;
+      }
       .sidebar{
         width:100%;
+      }
+      .tool-panel{
+        width:100%;
+        margin-left:0;
       }
       .sidebar.collapsed{
         width:100%;
@@ -271,8 +312,9 @@
     </header>
 
     <div class="layout">
-      <!-- SIDEBAR ON THE LEFT -->
-      <aside class="sidebar" id="sidebar">
+      <div class="sidecol">
+        <!-- SIDEBAR ON THE LEFT -->
+        <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <span>Practical constraints</span>
           <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle filters">⟨</button>
@@ -312,8 +354,18 @@
             <button class="side-chip" data-group="iface" data-tag="Web tool">Web tool</button>
             <button class="side-chip" data-group="iface" data-tag="Docker/Singularity">Docker/Singularity</button>
           </div>
+
         </div>
-      </aside>
+        </aside>
+
+        <!-- TOOL INFO PANEL -->
+        <aside class="tool-panel">
+          <div class="sidebar-title">Tool Info</div>
+          <div class="tool-info" id="toolInfo" aria-live="polite">
+            <div class="tool-info-muted">Hover a simulator dot to see details here.</div>
+          </div>
+        </aside>
+      </div>
 
       <!-- MAIN CONTENT -->
       <div class="main">
@@ -683,6 +735,7 @@
     const legendEl = document.getElementById('legend');
     const sidebarEl = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    const toolInfo = document.getElementById('toolInfo');
 
     const scaleX = y => ((y - minYear) / (axisMaxYear - minYear)) * 100;
     const scaleY = s => (speciesOrder.indexOf(s) / (speciesOrder.length - 1)) * 100;
@@ -752,8 +805,45 @@
     }
 
     function escapeHtml(s){ 
-      const d=document.createElement('div'); d.textContent=s; return d.innerHTML;
-     }
+      const d=document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+
+    function formatMaybeList(v, fallback){
+      if (Array.isArray(v)) return v.length ? v.join(', ') : (fallback || '—');
+      if (typeof v === 'string') return v.trim() || (fallback || '—');
+      return fallback || '—';
+    }
+
+    function renderToolInfo(d){
+      if (!toolInfo) return;
+      if (!d){
+        toolInfo.innerHTML = '<div class="tool-info-muted">Hover a simulator dot to see details here.</div>';
+        return;
+      }
+
+      const approach = formatMaybeList(d.approaches, '—');
+      const ground = formatMaybeList(d.groundTruth, '—');
+      const temporal = formatMaybeList(d.temporal, 'None');
+      const chain = d.chain || '—';
+      const output = d.output || '';
+      const scope = `${escapeHtml(d.bioScope)} - ${escapeHtml(d.abstraction)} level`;
+      const useCase = d.useCase || '';
+      const iface = d.iface || '';
+
+      toolInfo.innerHTML = `
+        <div class="tool-info-title">${escapeHtml(d.name)}</div>
+        <div class="tool-info-meta">${escapeHtml(d.species)} - ${d.year}</div>
+        <div class="tool-info-line"><span class="tool-info-label">Scope:</span> ${scope}</div>
+        <div class="tool-info-line"><span class="tool-info-label">Approach:</span> ${escapeHtml(approach)}</div>
+        <div class="tool-info-line"><span class="tool-info-label">Output GT:</span> ${escapeHtml(ground)}</div>
+        <div class="tool-info-line"><span class="tool-info-label">Temporal:</span> ${escapeHtml(temporal)}</div>
+        <div class="tool-info-line"><span class="tool-info-label">Chain:</span> ${escapeHtml(chain)}${output ? ` - ${escapeHtml(output)}` : ''}</div>
+        <div class="tool-info-line"><span class="tool-info-label">UnivAIRRse:</span> ${escapeHtml(d.speciesSupport || '—')}</div>
+        <div class="tool-info-line">${escapeHtml(useCase)}${iface ? ` - ${escapeHtml(iface)}` : ''}</div>
+      `;
+    }
 
     function getShortName(d){
         // strip reference: "SHM models (Yaari 2013)" -> "SHM models"
@@ -844,10 +934,10 @@
           point.style.left=`${x}%`;
           point.style.top =`${y}%`;
           point.style.setProperty('--jx', jx + 'px');
+          point.setAttribute('tabindex', '0');
           // make it act like a link if a paperUrl exists
           if (d.paperUrl) {
             point.setAttribute('role', 'link');
-            point.setAttribute('tabindex', '0');
             point.title = 'Open reference paper';
 
             point.addEventListener('click', (e) => {
@@ -877,21 +967,10 @@
           nameTag.className = 'name-tag';
           nameTag.textContent = getShortName(d);
           point.appendChild(nameTag);
-
-          const label=document.createElement('div');
-            label.className='label';
-            label.innerHTML =
-            `<strong>${escapeHtml(d.name)}</strong><br>` +
-            `${escapeHtml(d.species)} • ${d.year}<br>` +
-            `<em>${escapeHtml(d.bioScope)} • ${escapeHtml(d.abstraction)} level</em><br>` +
-            `Approach: ${escapeHtml((d.approaches||[]).join(' + '))}<br>` +
-            `Output GT: ${escapeHtml((d.groundTruth||[]).join(', ') || '—')}<br>` +
-            `Temporal modeling: ${escapeHtml((d.temporal||[]).join(', ') || 'None')}<br>` +
-            `Chain: ${escapeHtml(d.chain)} • Output desc: ${escapeHtml(d.output)}<br>` +
-            `UnivAIRRse: ${escapeHtml(d.speciesSupport)}<br>` +
-            `${escapeHtml(d.useCase)} • ${escapeHtml(d.iface)}`;
-
-          point.appendChild(label);
+          point.addEventListener('mouseenter', () => renderToolInfo(d));
+          point.addEventListener('mouseleave', () => renderToolInfo(null));
+          point.addEventListener('focus', () => renderToolInfo(d));
+          point.addEventListener('blur', () => renderToolInfo(null));
 
           inner.appendChild(point);
         });
@@ -1058,6 +1137,7 @@
         p.classList.toggle('active', on);
         p.style.background = on ? color : neutral;
       });
+      renderToolInfo(null);
     }
 
     /* ----------------- INIT ----------------- */
@@ -1068,9 +1148,14 @@
       buildLegend();
       setupSidebar();
       applyFilter();  // all gray initially; sidebar empty => everyone visible
+      renderToolInfo(null);
     }
     render();
     window.addEventListener('resize', ()=>{ buildAxes(); applyFilter(); });
   </script>
 </body>
 </html>
+
+
+
+
