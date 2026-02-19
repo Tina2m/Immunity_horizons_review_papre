@@ -164,95 +164,132 @@
     }
     .sidebar{
       width:320px;
-      background:var(--panel);
-      border:1px solid var(--border);
+      background:linear-gradient(180deg, #ffffff 0%, #f7f8fb 100%);
+      border:1px solid #e2e8f0;
       border-radius:14px;
-      box-shadow:var(--shadow);
+      box-shadow:0 12px 30px rgba(15,23,42,.10);
       padding:10px 10px 12px;
       transition:width .18s ease;
       overflow:hidden;
       margin-left:-48px;
     }
-    .sidebar.collapsed{
-      width:42px;
-    }
     .sidebar-header{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      margin-bottom:4px;
+      margin-bottom:6px;
       font-size:13px;
       font-weight:600;
-      color:var(--muted);
+      color:var(--ink);
       white-space:nowrap;
-    }
-    .sidebar.collapsed .sidebar-header span{
-      display:none;
-    }
-    .sidebar-toggle{
-      border:none;
-      background:transparent;
-      cursor:pointer;
-      font-size:16px;
-      line-height:1;
-      padding:2px 4px;
-      color:var(--muted);
+      padding:6px 8px;
+      border-radius:10px;
+      background:linear-gradient(90deg, rgba(79,70,229,.10), rgba(79,70,229,.02));
+      border:1px solid rgba(79,70,229,.15);
     }
     .sidebar-body{
       margin-top:4px;
-    }
-    .sidebar.collapsed .sidebar-body{
-      display:none;
     }
     .sidebar-section{
       margin-top:8px;
     }
     .tool-panel{
       width:320px;
-      background:var(--panel);
-      border:1px solid var(--border);
+      background:linear-gradient(180deg, #ffffff 0%, #f7f8fb 100%);
+      border:1px solid #e2e8f0;
       border-radius:14px;
-      box-shadow:var(--shadow);
+      box-shadow:0 12px 30px rgba(15,23,42,.10);
       padding:10px 10px 12px;
       margin-left:-48px;
+      position:relative;
+    }
+    .tool-panel::before{
+      content:"";
+      position:absolute;
+      left:10px;
+      right:10px;
+      top:8px;
+      height:3px;
+      border-radius:999px;
+      background:linear-gradient(90deg, var(--accent), #22c55e);
+      opacity:.75;
     }
     .tool-info{
-      padding:10px;
-      border:1px solid var(--border);
-      border-radius:10px;
-      background:#f9fafb;
+      padding:12px;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      background:linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
       font-size:11px;
       color:var(--ink);
       min-height:140px;
       max-height:none;
       overflow:visible;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+    }
+    .tool-info-head{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
     }
     .tool-info-title{
       font-weight:700;
-      margin-bottom:2px;
+      font-size:13px;
     }
     .tool-info-meta{
       color:var(--muted);
       font-size:11px;
-      margin-bottom:6px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
     }
-    .tool-info-line{
-      margin:2px 0;
+    .tool-info-pill{
+      padding:2px 6px;
+      border-radius:999px;
+      background:#eef2ff;
+      border:1px solid rgba(79,70,229,.25);
+      color:#3730a3;
+      font-weight:600;
+      font-size:10px;
+    }
+    .tool-info-grid{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .tool-info-row{
+      display:grid;
+      grid-template-columns:92px 1fr;
+      gap:6px;
+      align-items:start;
     }
     .tool-info-label{
       color:var(--muted);
       font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      font-size:10px;
+    }
+    .tool-info-value{
+      color:var(--ink);
+    }
+    .tool-info-note{
+      padding-top:6px;
+      border-top:1px dashed #e5e7eb;
+      color:var(--muted);
     }
     .tool-info-muted{
       color:var(--muted);
     }
     .sidebar-title{
-      font-size:12px;
+      font-size:11px;
       font-weight:600;
       margin-bottom:4px;
       color:var(--muted);
       text-transform:uppercase;
-      letter-spacing:.06em;
+      letter-spacing:.08em;
     }
     .side-chip{
       display:inline-flex;
@@ -260,11 +297,19 @@
       margin:3px 3px 0 0;
       padding:5px 8px;
       border-radius:999px;
-      border:1px solid var(--border);
-      background:#f9fafb;
+      border:1px solid #e5e7eb;
+      background:#ffffff;
       font-size:11px;
       cursor:pointer;
       color:var(--ink);
+      transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+      box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
+    }
+    .side-chip:hover{
+      transform:translateY(-1px);
+      box-shadow:0 6px 14px rgba(15,23,42,.08);
+      border-color:#cbd5f5;
+      background:#f8fafc;
     }
     .side-chip.active{
       background:#eef2ff;
@@ -285,15 +330,6 @@
       .tool-panel{
         width:100%;
         margin-left:0;
-      }
-      .sidebar.collapsed{
-        width:100%;
-      }
-      .sidebar.collapsed .sidebar-header span{
-        display:inline;
-      }
-      .sidebar.collapsed .sidebar-body{
-        display:block;
       }
     }
 
@@ -317,7 +353,6 @@
         <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <span>Practical constraints</span>
-          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle filters">⟨</button>
         </div>
         <div class="sidebar-body">
           <!-- Input requirements -->
@@ -734,7 +769,6 @@
     const switcher = document.getElementById('switcher');
     const legendEl = document.getElementById('legend');
     const sidebarEl = document.getElementById('sidebar');
-    const sidebarToggle = document.getElementById('sidebarToggle');
     const toolInfo = document.getElementById('toolInfo');
 
     const scaleX = y => ((y - minYear) / (axisMaxYear - minYear)) * 100;
@@ -833,15 +867,22 @@
       const iface = d.iface || '';
 
       toolInfo.innerHTML = `
-        <div class="tool-info-title">${escapeHtml(d.name)}</div>
-        <div class="tool-info-meta">${escapeHtml(d.species)} - ${d.year}</div>
-        <div class="tool-info-line"><span class="tool-info-label">Scope:</span> ${scope}</div>
-        <div class="tool-info-line"><span class="tool-info-label">Approach:</span> ${escapeHtml(approach)}</div>
-        <div class="tool-info-line"><span class="tool-info-label">Output GT:</span> ${escapeHtml(ground)}</div>
-        <div class="tool-info-line"><span class="tool-info-label">Temporal:</span> ${escapeHtml(temporal)}</div>
-        <div class="tool-info-line"><span class="tool-info-label">Chain:</span> ${escapeHtml(chain)}${output ? ` - ${escapeHtml(output)}` : ''}</div>
-        <div class="tool-info-line"><span class="tool-info-label">UnivAIRRse:</span> ${escapeHtml(d.speciesSupport || '—')}</div>
-        <div class="tool-info-line">${escapeHtml(useCase)}${iface ? ` - ${escapeHtml(iface)}` : ''}</div>
+        <div class="tool-info-head">
+          <div class="tool-info-title">${escapeHtml(d.name)}</div>
+          <div class="tool-info-meta">
+            <span class="tool-info-pill">${escapeHtml(d.species)}</span>
+            <span class="tool-info-pill">${d.year}</span>
+          </div>
+        </div>
+        <div class="tool-info-grid">
+          <div class="tool-info-row"><span class="tool-info-label">Scope</span><span class="tool-info-value">${scope}</span></div>
+          <div class="tool-info-row"><span class="tool-info-label">Approach</span><span class="tool-info-value">${escapeHtml(approach)}</span></div>
+          <div class="tool-info-row"><span class="tool-info-label">Output GT</span><span class="tool-info-value">${escapeHtml(ground)}</span></div>
+          <div class="tool-info-row"><span class="tool-info-label">Temporal</span><span class="tool-info-value">${escapeHtml(temporal)}</span></div>
+          <div class="tool-info-row"><span class="tool-info-label">Chain</span><span class="tool-info-value">${escapeHtml(chain)}${output ? ` - ${escapeHtml(output)}` : ''}</span></div>
+          <div class="tool-info-row"><span class="tool-info-label">UnivAIRRse</span><span class="tool-info-value">${escapeHtml(d.speciesSupport || '—')}</span></div>
+        </div>
+        <div class="tool-info-note">${escapeHtml(useCase)}${iface ? ` - ${escapeHtml(iface)}` : ''}</div>
       `;
     }
 
@@ -1056,11 +1097,6 @@
     };
 
     function setupSidebar(){
-      sidebarToggle.addEventListener('click', ()=>{
-        const collapsed = sidebarEl.classList.toggle('collapsed');
-        sidebarToggle.textContent = collapsed ? '⟩' : '⟨';
-      });
-
       document.querySelectorAll('.side-chip').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const group = btn.dataset.group;
@@ -1155,6 +1191,9 @@
   </script>
 </body>
 </html>
+
+
+
 
 
 
